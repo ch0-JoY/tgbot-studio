@@ -1,0 +1,1033 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>ИИ-ассистент</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: var(--tg-theme-bg-color, #17212b);
+    --bg2: var(--tg-theme-secondary-bg-color, #232e3c);
+    --text: var(--tg-theme-text-color, #f5f5f5);
+    --hint: var(--tg-theme-hint-color, #8b9aa8);
+    --accent: var(--tg-theme-button-color, #5288c1);
+    --accent-text: var(--tg-theme-button-text-color, #ffffff);
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 12px 16px 96px; }
+
+  /* Главные вкладки */
+  .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--bg2);
+    border-radius: 12px; padding: 4px; position: sticky; top: 8px; z-index: 6;
+    box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+  .tabs button, .subtabs button { border: 0; background: transparent; color: var(--text); padding: 9px 0;
+    border-radius: 9px; font: inherit; font-weight: 600; cursor: pointer; font-size: 14px; }
+  .tabs button.on, .subtabs button.on { background: var(--accent); color: var(--accent-text); }
+  .subtabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--bg2);
+    border-radius: 12px; padding: 4px; margin: 12px 0 4px; }
+  .subtabs button { font-size: 13px; padding: 7px 0; }
+  .panel, .sub { display: none; } .panel.on, .sub.on { display: block; }
+
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--hint);
+    margin: 18px 0 8px; font-weight: 600; }
+  .note { color: var(--hint); font-size: 13px; margin: -2px 0 8px; }
+
+  /* Главная */
+  .hello { display: flex; gap: 14px; align-items: center; margin: 14px 0 4px; }
+  .orb { width: 56px; height: 56px; border-radius: 50%; flex: none;
+    background: conic-gradient(from 0deg, #7b5cff, #3ec6ff, #5effc1, #ffd25e, #ff6fb5, #7b5cff);
+    animation: spin 6s linear infinite; position: relative; filter: saturate(1.2); }
+  .orb::after { content: ""; position: absolute; inset: 6px; border-radius: 50%; background: var(--bg);
+    box-shadow: inset 0 0 18px rgba(123,92,255,.6); }
+  .orb span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 22px; z-index: 1; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .orb span { animation: spin 6s linear infinite reverse; }
+  .hello h1 { margin: 0; font-size: 20px; } .hello p { margin: 2px 0 0; color: var(--hint); font-size: 13px; }
+
+  .askbox { background: var(--bg2); border-radius: var(--radius); padding: 10px; margin-top: 12px; display: flex; gap: 8px; align-items: flex-end; }
+  .askbox textarea { flex: 1; background: transparent; border: 0; min-height: 44px; padding: 8px; }
+  .askbox button { border: 0; border-radius: 12px; width: 44px; height: 44px; background: var(--accent); color: var(--accent-text);
+    font-size: 20px; cursor: pointer; flex: none; }
+  .askbox button:disabled { opacity: .4; }
+  .quick { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0 2px; scrollbar-width: none; }
+  .quick::-webkit-scrollbar { display: none; }
+
+  .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .tile { min-width: 0; background: var(--bg2); border: 0; border-radius: var(--radius); padding: 10px; text-align: left; color: var(--text);
+    font: inherit; cursor: pointer; transition: transform .1s; }
+  .tile:active { transform: scale(.97); }
+  .tile b { display: block; font-size: 14px; margin-top: 8px; }
+  .tile span { color: var(--hint); font-size: 12px; line-height: 1.3; display: block; }
+  .pv { height: 74px; border-radius: 10px; overflow: hidden; position: relative; display: grid; place-items: center; }
+
+  /* Превью плиток */
+  .pv-chat { background: linear-gradient(135deg, #2b5876, #4e4376); gap: 4px; place-items: stretch; padding: 10px; display: flex; flex-direction: column; justify-content: center; }
+  .pv-chat i { display: block; height: 14px; border-radius: 8px; background: rgba(255,255,255,.85); width: 60%; }
+  .pv-chat i:nth-child(2) { align-self: flex-end; background: #7fd1ff; width: 45%; }
+  .pv-chat i:nth-child(3) { width: 72%; animation: typing 1.6s ease-in-out infinite; }
+  @keyframes typing { 0%,100% { width: 30%; } 50% { width: 72%; } }
+  .pv-photo { background: linear-gradient(#87cefa, #ffe5b4); }
+  .pv-photo .lens { position: absolute; width: 30px; height: 30px; border: 4px solid #fff; border-radius: 50%;
+    animation: scan 2.4s ease-in-out infinite; box-shadow: 0 0 0 2px rgba(0,0,0,.2); }
+  .pv-photo .lens::after { content: ""; position: absolute; width: 14px; height: 4px; background: #fff; right: -14px; bottom: -6px; transform: rotate(45deg); border-radius: 2px; }
+  @keyframes scan { 0%,100% { transform: translate(-30px,-6px); } 50% { transform: translate(24px,6px); } }
+  .pv-ocr { background: #f4f1ea; padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; place-items: stretch; }
+  .pv-ocr i { height: 5px; background: #9aa3ad; border-radius: 3px; display: block; }
+  .pv-ocr i:nth-child(2) { width: 80%; } .pv-ocr i:nth-child(3) { width: 90%; } .pv-ocr i:nth-child(4) { width: 55%; }
+  .pv-ocr::after { content: ""; position: absolute; left: 0; right: 0; height: 2px; background: #00e0a0; box-shadow: 0 0 10px #00e0a0;
+    animation: scanline 1.8s linear infinite; }
+  @keyframes scanline { from { top: 6px; } to { top: 66px; } }
+  .pv-tr { background: linear-gradient(135deg, #11998e, #38ef7d); font-weight: 800; font-size: 22px; color: #fff; }
+  .pv-tr em { font-style: normal; animation: swap 2.4s infinite; display: inline-block; }
+  @keyframes swap { 0%,40% { transform: rotateX(0); } 50%,90% { transform: rotateX(360deg); } }
+  .pv-solve { background: #1e2a3a; color: #fff; font: 700 15px/1.2 ui-monospace, monospace; }
+  .pv-solve s { text-decoration: none; color: #5effc1; }
+  .pv-circle { background: #20232a; }
+  .pv-circle .c { width: 60px; height: 60px; border-radius: 50%; overflow: hidden; border: 3px solid #fff;
+    background: radial-gradient(circle at 70% 30%, #ffd25e 0 10px, transparent 11px), linear-gradient(#7ec8f0 50%, #6bcb77 50%);
+    animation: zoomy 2.4s ease-in-out infinite alternate; }
+  @keyframes zoomy { from { background-size: 100% 100%; } to { background-size: 140% 140%; } }
+  .pv-sticker { background: linear-gradient(135deg, #ff9a9e, #fad0c4); }
+  .pv-sticker .s { width: 54px; height: 54px; border-radius: 16px; background: linear-gradient(#ffd25e, #ff8c42); display: grid; place-items: center;
+    font-size: 30px; transform: rotate(-8deg); filter: drop-shadow(0 0 0 #fff) drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff) drop-shadow(0 4px 6px rgba(0,0,0,.25)); }
+  .pv-nobg { background-color: #fff; background-image: linear-gradient(45deg, #ddd 25%, transparent 25%, transparent 75%, #ddd 75%),
+    linear-gradient(45deg, #ddd 25%, transparent 25%, transparent 75%, #ddd 75%); background-size: 12px 12px; background-position: 0 0, 6px 6px; font-size: 38px; }
+  .pv-nobg::before { content: "✂"; position: absolute; font-size: 18px; color: #e53935; animation: cut 2s linear infinite; }
+  @keyframes cut { 0% { transform: translate(-36px,-20px); } 50% { transform: translate(36px,-20px); } 100% { transform: translate(-36px,-20px); } }
+  .pv-voice { background: linear-gradient(135deg, #8e2de2, #4a00e0); display: flex; gap: 4px; align-items: center; justify-content: center; }
+  .pv-voice i { width: 5px; background: #fff; border-radius: 3px; display: block; animation: wave 1s ease-in-out infinite; }
+  .pv-voice i:nth-child(odd) { animation-delay: -.4s; } .pv-voice i:nth-child(3n) { animation-delay: -.7s; }
+  @keyframes wave { 0%,100% { height: 10px; } 50% { height: 40px; } }
+  .pv-script { background: #111; }
+  .pv-script .film { display: flex; gap: 6px; animation: roll 3s linear infinite; }
+  .pv-script .film i { width: 30px; height: 44px; border-radius: 4px; display: block; background: linear-gradient(#ff7e5f, #feb47b); }
+  .pv-script .film i:nth-child(2n) { background: linear-gradient(#7b5cff, #3ec6ff); }
+  .pv-script::before, .pv-script::after { content: ""; position: absolute; left: 0; right: 0; height: 8px;
+    background: repeating-linear-gradient(90deg, #fff 0 6px, transparent 6px 14px); opacity: .7; }
+  .pv-script::before { top: 4px; } .pv-script::after { bottom: 4px; }
+  @keyframes roll { from { transform: translateX(0); } to { transform: translateX(-72px); } }
+
+  /* Общие элементы */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border: 1.5px solid transparent; background: var(--bg2); color: var(--text); border-radius: 999px;
+    padding: 7px 13px; font: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .chip.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, var(--bg2)); }
+  .dot { width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); flex: none; }
+  .ar { display: inline-block; border: 2px solid currentColor; border-radius: 3px; opacity: .8; flex: none; }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .card { background: var(--bg2); border: 1.5px solid transparent; border-radius: var(--radius); padding: 10px;
+    text-align: left; color: var(--text); font: inherit; cursor: pointer; }
+  .card.on { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .card b { display: block; font-size: 15px; } .card span { color: var(--hint); font-size: 12px; }
+  .big { font-size: 26px; display: block; margin-bottom: 4px; }
+  .thumb { width: 100%; aspect-ratio: 1; border-radius: 10px; overflow: hidden; margin-bottom: 8px; }
+  .swatches { display: flex; border-radius: 8px; overflow: hidden; height: 26px; margin-bottom: 8px; }
+  .swatches i { flex: 1; }
+  .stage svg, .stage canvas, .thumb svg, .thumb canvas { width: 100%; height: 100%; display: block; }
+  canvas.pix { image-rendering: pixelated; }
+
+  /* Пример диалога */
+  .dialog { background: var(--bg2); border-radius: var(--radius); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .msg { max-width: 85%; padding: 8px 11px; border-radius: 14px; font-size: 14px; white-space: pre-line; }
+  .msg.me { align-self: flex-end; background: var(--accent); color: var(--accent-text); border-bottom-right-radius: 4px; }
+  .msg.ai { background: var(--bg); border-bottom-left-radius: 4px; }
+  .bubble { background: var(--bg2); border-radius: 14px 14px 14px 4px; padding: 10px 12px; margin-top: 10px; font-size: 14px; }
+  .bubble small { display: block; color: var(--hint); font-size: 11px; margin-bottom: 2px; }
+
+  /* Превью кружка и стикера */
+  .mediaprev { display: flex; justify-content: center; padding: 14px; background: var(--bg2); border-radius: var(--radius); }
+  .circle { width: 170px; height: 170px; border-radius: 50%; overflow: hidden; position: relative; box-shadow: 0 6px 18px rgba(0,0,0,.3); }
+  .circle .img { position: absolute; inset: 0; }
+  .circle .img svg { width: 100%; height: 100%; display: block; }
+  .circle .ring { position: absolute; inset: 0; border-radius: 50%; border: 3px solid rgba(255,255,255,.9); }
+  .circle .ring::after { content: ""; position: absolute; inset: -3px; border-radius: 50%; border: 3px solid transparent;
+    border-top-color: var(--accent); animation: spin var(--dur, 5s) linear infinite; }
+  @keyframes zoomin { from { transform: scale(1); } to { transform: scale(1.35); } }
+  @keyframes zoomout { from { transform: scale(1.35); } to { transform: scale(1); } }
+  @keyframes pan { from { transform: scale(1.3) translateX(12%); } to { transform: scale(1.3) translateX(-12%); } }
+  @keyframes pulse { 0%,100% { transform: scale(1.05); } 50% { transform: scale(1.18); } }
+  .sticker { width: 150px; height: 150px; display: grid; place-items: center; background-color: #fff;
+    background-image: linear-gradient(45deg, #e6e6e6 25%, transparent 25%, transparent 75%, #e6e6e6 75%),
+    linear-gradient(45deg, #e6e6e6 25%, transparent 25%, transparent 75%, #e6e6e6 75%);
+    background-size: 16px 16px; background-position: 0 0, 8px 8px; border-radius: 12px; position: relative; }
+  .sticker .art { width: 116px; height: 116px; overflow: hidden; }
+  .sticker .art svg { width: 100%; height: 100%; display: block; }
+  .sticker .art.circle-shape { border-radius: 50%; }
+  .sticker .art.rounded { border-radius: 26px; }
+  .sticker .art.outline { filter: drop-shadow(3px 0 0 #fff) drop-shadow(-3px 0 0 #fff) drop-shadow(0 3px 0 #fff) drop-shadow(0 -3px 0 #fff) drop-shadow(0 3px 6px rgba(0,0,0,.3)); overflow: visible; }
+  .sticker .art.outline > div { width: 100%; height: 100%; overflow: hidden; border-radius: inherit; }
+  .sticker .emo { position: absolute; right: -6px; bottom: -6px; font-size: 28px; }
+
+  /* Shorts */
+  .preview { display: flex; gap: 14px; align-items: center; background: var(--bg2); border-radius: var(--radius); padding: 12px; margin-top: 14px; }
+  .stage { flex: 0 0 110px; height: 110px; border-radius: 16px; overflow: hidden; position: relative; }
+  .loc { position: absolute; right: 6px; bottom: 4px; font-size: 18px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.4)); }
+  .preview h3 { margin: 0 0 2px; font-size: 17px; }
+  .meta { color: var(--hint); font-size: 13px; }
+  .prompt { margin-top: 6px; font-size: 12px; color: var(--hint); font-style: italic; word-break: break-word; }
+  .scenebar { display: flex; gap: 4px; margin-top: 10px; }
+  .scenebar i { flex: 1; height: 10px; border-radius: 4px; background: var(--accent); opacity: .85; }
+  .scenebar i:nth-child(even) { opacity: .55; }
+
+  input[type=text], textarea { width: 100%; background: var(--bg2); color: var(--text); border: 1.5px solid transparent;
+    border-radius: 12px; padding: 11px 12px; font: inherit; outline: none; }
+  input[type=text]:focus, textarea:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 70px; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--bg2);
+    border-radius: var(--radius); padding: 12px 14px; margin-top: 14px; }
+  .switch { position: relative; width: 48px; height: 28px; flex: 0 0 48px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch span { position: absolute; inset: 0; background: var(--hint); border-radius: 999px; transition: .2s; cursor: pointer; }
+  .switch span::after { content: ""; position: absolute; width: 22px; height: 22px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+  .switch input:checked + span { background: var(--accent); }
+  .switch input:checked + span::after { transform: translateX(20px); }
+  .custom { display: flex; gap: 10px; }
+  .custom label { flex: 1; text-align: center; font-size: 12px; color: var(--hint); }
+  .custom input { width: 100%; height: 44px; border: 0; border-radius: 10px; padding: 0; background: none; cursor: pointer; }
+  .ai { background: var(--bg2); border-radius: var(--radius); padding: 14px; margin-top: 12px; }
+  .ai h3 { margin: 0 0 4px; font-size: 16px; } .ai p { margin: 0 0 10px; color: var(--hint); font-size: 13px; }
+  .ai textarea, .ai input[type=text] { background: var(--bg); }
+  .btn { width: 100%; border: 0; border-radius: 12px; padding: 13px; font: inherit; font-weight: 600; cursor: pointer;
+    background: var(--bg2); color: var(--text); margin-top: 14px; }
+  .btn.main { background: var(--accent); color: var(--accent-text); }
+  .ai .btn { margin-top: 10px; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  #fallbackSave { display: none; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="tabs">
+    <button data-tab="home" class="on">🏠</button>
+    <button data-tab="ai">🤖 ИИ</button>
+    <button data-tab="media">🖼 Фото</button>
+    <button data-tab="shorts">🎬 Shorts</button>
+  </div>
+
+  <!-- ===================== ГЛАВНАЯ ===================== -->
+  <section class="panel on" id="tab-home">
+    <div class="hello">
+      <div class="orb"><span>✨</span></div>
+      <div><h1>Чем помочь?</h1><p>Спроси что угодно или выбери инструмент — ответ придёт в чат</p></div>
+    </div>
+
+    <div class="askbox">
+      <textarea id="askText" maxlength="400" placeholder="Например: составь план тренировок на неделю"></textarea>
+      <button id="askBtn" disabled>➤</button>
+    </div>
+    <div class="quick" id="quick"></div>
+
+    <h2>Инструменты</h2>
+    <div class="tiles" id="tiles"></div>
+  </section>
+
+  <!-- ===================== ИИ ===================== -->
+  <section class="panel" id="tab-ai">
+    <h2>Пример ответа</h2>
+    <div class="dialog" id="dialog"></div>
+
+    <h2>Роль ассистента</h2>
+    <div class="grid" id="personas"></div>
+
+    <h2>Длина ответов</h2>
+    <div class="chips" id="lengths"></div>
+
+    <h2>Тон</h2>
+    <div class="chips" id="tones"></div>
+
+    <h2>Язык ответов</h2>
+    <div class="chips" id="alang"></div>
+
+    <div class="row">
+      <div><b>Эмодзи в ответах</b><div class="meta">Чуть живее и веселее</div></div>
+      <label class="switch"><input type="checkbox" id="emoji"><span></span></label>
+    </div>
+    <div class="note" style="margin-top:12px">ИИ помнит последние сообщения диалога. Кнопка «🧹 Новый диалог» в чате очищает память.</div>
+  </section>
+
+  <!-- ===================== ФОТО ===================== -->
+  <section class="panel" id="tab-media">
+    <h2>⭕ Кружок из фото</h2>
+    <div class="mediaprev"><div class="circle"><div class="img" id="circleImg"></div><div class="ring" id="circleRing"></div></div></div>
+    <h2>Движение камеры</h2>
+    <div class="chips" id="effects"></div>
+    <h2>Длительность</h2>
+    <div class="chips" id="cdur"></div>
+
+    <h2 style="margin-top:28px">🎨 Стикер из фото</h2>
+    <div class="mediaprev"><div class="sticker"><div class="art" id="stickerArt"><div id="stickerImg"></div></div><span class="emo" id="stickerEmo"></span></div></div>
+    <h2>Форма</h2>
+    <div class="chips" id="shapes"></div>
+    <div class="row">
+      <div><b>Белая обводка</b><div class="meta">Как у фирменных стикеров</div></div>
+      <label class="switch"><input type="checkbox" id="outline"><span></span></label>
+    </div>
+    <h2>Эмодзи стикера</h2>
+    <div class="chips" id="emojis"></div>
+    <div class="note" style="margin-top:12px">Готовый стикер можно одной кнопкой добавить в свой личный стикерпак.</div>
+  </section>
+
+  <!-- ===================== SHORTS ===================== -->
+  <section class="panel" id="tab-shorts">
+    <div class="preview">
+      <div class="stage"><div id="stage" style="width:100%;height:100%"></div><span class="loc" id="locIcon"></span></div>
+      <div>
+        <h3 id="pvName">Без имени</h3>
+        <div class="meta" id="pvMeta"></div>
+        <div class="prompt" id="pvPrompt"></div>
+      </div>
+    </div>
+
+    <div class="subtabs">
+      <button data-sub="hero" class="on">Герой</button>
+      <button data-sub="style">Стиль</button>
+      <button data-sub="world">Мир</button>
+      <button data-sub="ideas">Идеи</button>
+    </div>
+
+    <div class="sub on" id="sub-hero">
+      <div class="row">
+        <div><b>Герой во всех роликах</b><div class="meta">Сценарии будут с этим персонажем</div></div>
+        <label class="switch"><input type="checkbox" id="useChar"><span></span></label>
+      </div>
+      <h2>Имя</h2>
+      <input type="text" id="name" maxlength="30" placeholder="Например, Барсик">
+      <h2>Кто это</h2>
+      <div class="chips" id="species"></div>
+      <input type="text" id="speciesCustom" class="hidden" maxlength="40" placeholder="Например: капибара-повар" style="margin-top:8px">
+      <h2>Телосложение</h2>
+      <div class="chips" id="build"></div>
+      <h2 id="colorTitle">Окрас</h2>
+      <div class="chips" id="color"></div>
+      <h2>Глаза</h2>
+      <div class="chips" id="eyes"></div>
+      <h2>Аксессуары · до 3</h2>
+      <div class="chips" id="acc"></div>
+      <h2>Характер · до 3</h2>
+      <div class="chips" id="traits"></div>
+      <h2>Дополнительно</h2>
+      <textarea id="extra" maxlength="200" placeholder="Любые детали: шрам на ухе, носит носок вместо шапки…"></textarea>
+      <button class="btn" id="random">🎲 Случайный герой</button>
+    </div>
+
+    <div class="sub" id="sub-style">
+      <h2>Стиль рисовки</h2>
+      <div class="note">Так твой герой будет выглядеть в каждом стиле</div>
+      <div class="grid" id="styles"></div>
+      <h2>Настроение</h2>
+      <div class="note">Посмотри на лицо героя в превью сверху</div>
+      <div class="chips" id="moods"></div>
+      <h2>Голос рассказчика</h2>
+      <div class="chips" id="narrators"></div>
+      <div class="bubble" id="narrSample"></div>
+      <h2>Длительность ролика</h2>
+      <div class="chips" id="duration"></div>
+      <div class="scenebar" id="sceneBar"></div>
+      <div class="note" id="sceneNote" style="margin-top:6px"></div>
+      <h2>Формат кадра</h2>
+      <div class="chips" id="ratio"></div>
+      <h2>Язык озвучки</h2>
+      <div class="chips" id="lang"></div>
+    </div>
+
+    <div class="sub" id="sub-world">
+      <h2>Место действия</h2>
+      <div class="chips" id="locations"></div>
+      <h2>Время суток и свет</h2>
+      <div class="chips" id="times"></div>
+      <h2>Палитра для всех кадров</h2>
+      <div class="grid" id="palettes"></div>
+      <h2>Свои цвета</h2>
+      <div class="custom">
+        <label><input type="color" id="c0" value="#ff7a59">Цвет 1</label>
+        <label><input type="color" id="c1" value="#ffc145">Цвет 2</label>
+        <label><input type="color" id="c2" value="#8e3b46">Цвет 3</label>
+      </div>
+    </div>
+
+    <div class="sub" id="sub-ideas">
+      <div class="ai">
+        <h3>✨ Герой из описания</h3>
+        <p>Опиши персонажа своими словами — ИИ сам выставит всё в студии.</p>
+        <textarea id="aiHero" maxlength="400" placeholder="Толстый серый кот-пират с повязкой на глазу, ворчливый, но добрый"></textarea>
+        <button class="btn main" id="aiHeroBtn" disabled>Собрать героя</button>
+      </div>
+      <div class="ai">
+        <h3>💡 Идеи для роликов</h3>
+        <p>5 идей под твоего героя и стиль. Понравится — сценарий одной кнопкой.</p>
+        <input type="text" id="aiTopic" maxlength="100" placeholder="Тема (необязательно): Хэллоуин, школа, еда…">
+        <button class="btn main" id="aiIdeasBtn">Придумать идеи</button>
+      </div>
+      <div class="ai">
+        <h3>🎬 Сценарий</h3>
+        <p>Напиши идею — бот пришлёт сценарий с промптами. Тратит 1 генерацию.</p>
+        <textarea id="aiIdea" maxlength="400" placeholder="Герой впервые пробует лимон"></textarea>
+        <button class="btn main" id="aiGenBtn" disabled>Сгенерировать сценарий</button>
+      </div>
+    </div>
+  </section>
+
+  <button class="btn" id="reset">Сбросить настройки</button>
+  <button class="btn main" id="fallbackSave">💾 Сохранить</button>
+</div>
+
+<script>
+const tg = window.Telegram && window.Telegram.WebApp;
+const inTelegram = !!(tg && tg.platform && tg.platform !== "unknown");
+if (tg) { tg.ready(); tg.expand(); }
+
+// ================= Справочники: ассистент и фото =================
+const TOOLS = [
+  {id:"chat", t:"💬 Чат с ИИ", d:"Любые вопросы, тексты, советы", pv:`<div class="pv pv-chat"><i></i><i></i><i></i></div>`},
+  {id:"photo_ask", t:"📷 Вопрос по фото", d:"Что это? Где? Сколько стоит?", pv:`<div class="pv pv-photo"><div class="lens"></div></div>`},
+  {id:"ocr", t:"📝 Текст с фото", d:"Расшифрую документ, рукопись, чек", pv:`<div class="pv pv-ocr"><i></i><i></i><i></i><i></i></div>`},
+  {id:"translate", t:"🌍 Перевод с фото", d:"Меню, вывеска, инструкция", pv:`<div class="pv pv-tr">Aa → <em>Яя</em></div>`},
+  {id:"solve", t:"🧮 Решить задачу", d:"Математика, физика — по шагам", pv:`<div class="pv pv-solve">2x + 3 = 7<br>x = 2 <s>✓</s></div>`},
+  {id:"circle", t:"⭕ Кружок из фото", d:"Фото оживёт в видео-кружке", pv:`<div class="pv pv-circle"><div class="c"></div></div>`},
+  {id:"sticker", t:"🎨 Стикер из фото", d:"С обводкой, в личный стикерпак", pv:`<div class="pv pv-sticker"><div class="s">😎</div></div>`},
+  {id:"sticker_nobg", t:"✂️ Стикер без фона", d:"Вырежу объект с фото", pv:`<div class="pv pv-nobg">🐶</div>`},
+  {id:"voice", t:"🎤 Голосовое → текст", d:"Расшифрую и отвечу", pv:`<div class="pv pv-voice">${"<i></i>".repeat(9)}</div>`},
+  {id:"script", t:"🎬 Сценарий Shorts", d:"Сценарий и промпты для роликов", pv:`<div class="pv pv-script"><div class="film">${"<i></i>".repeat(8)}</div></div>`}
+];
+const QUICK = ["Объясни как пятилетнему: ", "Составь план: ", "Напиши пост про ", "Придумай идеи для ", "Проверь текст на ошибки: ", "Переведи на английский: "];
+
+const PERSONAS = [
+  {id:"universal", e:"🤖", ru:"Универсальный", d:"На все случаи", q:"Как быстрее уснуть?",
+   a:"Проветри комнату, убери телефон за час до сна и попробуй дыхание 4-7-8."},
+  {id:"teacher", e:"👩‍🏫", ru:"Учитель", d:"Объясняет просто", q:"Что такое фотосинтез?",
+   a:"Это когда растение готовит себе еду из света, воды и воздуха — как маленькая солнечная кухня."},
+  {id:"coder", e:"👨‍💻", ru:"Программист", d:"Код и разбор ошибок", q:"Как перевернуть строку в Python?",
+   a:"Срезом: s[::-1] — он проходит строку с конца."},
+  {id:"translator", e:"🌍", ru:"Переводчик", d:"Переводы с нюансами", q:"Переведи: «Я опаздываю»",
+   a:"I'm running late — так звучит естественнее, чем «I am late»."},
+  {id:"writer", e:"✍️", ru:"Копирайтер", d:"Посты и тексты", q:"Заголовок для поста про кофе",
+   a:"«Утро начинается не с будильника, а с первой чашки»."},
+  {id:"friend", e:"💬", ru:"Собеседник", d:"Просто поболтать", q:"Мне скучно",
+   a:"Давай придумаем приключение на вечер! Что ближе: кино, прогулка или новое хобби?"},
+  {id:"chef", e:"👨‍🍳", ru:"Шеф-повар", d:"Рецепты и замены", q:"Чем заменить яйцо в выпечке?",
+   a:"Половинкой банана или ложкой молотого льна с водой — тесто всё равно схватится."}
+];
+const LENGTHS = [{id:"short", ru:"⚡ Коротко"}, {id:"normal", ru:"📄 Обычно"}, {id:"long", ru:"📚 Подробно"}];
+const TONES = [{id:"friendly", ru:"😊 Дружелюбно"}, {id:"formal", ru:"🎩 Официально"}, {id:"humor", ru:"😄 С юмором"}];
+const ALANGS = [{id:"auto", ru:"🔄 Как пишу я"}, {id:"ru", ru:"🇷🇺 Русский"}, {id:"en", ru:"🇬🇧 English"}];
+
+const EFFECTS = [{id:"zoomin", ru:"🔍 Наезд"}, {id:"zoomout", ru:"🔭 Отъезд"}, {id:"pan", ru:"↔️ Панорама"}, {id:"pulse", ru:"💓 Пульс"}];
+const CDURS = [{id:3, ru:"3 сек"}, {id:5, ru:"5 сек"}, {id:8, ru:"8 сек"}];
+const SHAPES = [{id:"asis", ru:"🖼 Как есть"}, {id:"circle", ru:"⚪ Круг"}, {id:"rounded", ru:"▢ Скругление"}];
+const STICKER_EMOJI = ["😀","😂","😍","😎","🔥","👍","❤️","🤔","😭","🥳"];
+
+// ================= Справочники: Shorts =================
+const SPECIES = [
+  {id:"cat", ru:"Кот", e:"🐱"}, {id:"dog", ru:"Пёс", e:"🐶"}, {id:"fox", ru:"Лис", e:"🦊"},
+  {id:"bunny", ru:"Зайка", e:"🐰"}, {id:"owl", ru:"Сова", e:"🦉"}, {id:"dragon", ru:"Дракон", e:"🐲"},
+  {id:"robot", ru:"Робот", e:"🤖"}, {id:"alien", ru:"Пришелец", e:"👽"}, {id:"girl", ru:"Девочка", e:"👧"},
+  {id:"boy", ru:"Мальчик", e:"👦"}, {id:"custom", ru:"Свой", e:"✏️"}
+];
+const BUILD = [
+  {id:"tiny", ru:"Крошечный"}, {id:"chubby", ru:"Пухлый"}, {id:"fluffy", ru:"Пушистый"},
+  {id:"slim", ru:"Стройный"}, {id:"round", ru:"Круглый"}
+];
+const COLORS = [
+  {id:"ginger", ru:"Рыжий", hex:"#E8873A"}, {id:"white", ru:"Белый", hex:"#F2F2F2"},
+  {id:"black", ru:"Чёрный", hex:"#2B2B2B"}, {id:"gray", ru:"Серый", hex:"#9E9E9E"},
+  {id:"golden", ru:"Золотистый", hex:"#E6B84F"}, {id:"brown", ru:"Коричневый", hex:"#7B5034"},
+  {id:"light blue", ru:"Голубой", hex:"#5DADE2"}, {id:"pink", ru:"Розовый", hex:"#F48FB1"},
+  {id:"green", ru:"Зелёный", hex:"#66BB6A"}, {id:"purple", ru:"Фиолетовый", hex:"#9575CD"}
+];
+const EYES = [
+  {id:"green", ru:"Зелёные", hex:"#43A047"}, {id:"blue", ru:"Голубые", hex:"#1E88E5"},
+  {id:"amber", ru:"Янтарные", hex:"#FFB300"}, {id:"brown", ru:"Карие", hex:"#6D4C41"},
+  {id:"led", ru:"Светящиеся", hex:"#00E5FF"}
+];
+const ACC = [
+  {id:"scarf", ru:"🧣 Шарф"}, {id:"glasses", ru:"👓 Очки"}, {id:"backpack", ru:"🎒 Рюкзак"},
+  {id:"bowtie", ru:"🎀 Бабочка"}, {id:"crown", ru:"👑 Корона"}, {id:"headphones", ru:"🎧 Наушники"},
+  {id:"cap", ru:"🧢 Кепка"}, {id:"cape", ru:"🦸 Плащ"}
+];
+const TRAITS = ["любопытный","смелый","ленивый","ворчливый","добрый","хитрый","неуклюжий","мечтательный"];
+const NAMES = ["Барсик","Пиксель","Луна","Бублик","Зефирка","Гоша","Искра","Тоша","Пончик","Кнопка"];
+
+const STYLES = [
+  {id:"pixar", ru:"3D Pixar", d:"Объёмный мульт"}, {id:"clay", ru:"Пластилин", d:"Стоп-моушн"},
+  {id:"anime", ru:"Аниме", d:"Яркое, с тенями"}, {id:"cartoon", ru:"2D мульт", d:"Плоский, с контуром"},
+  {id:"lowpoly", ru:"Low-poly", d:"Гранёный 3D"}, {id:"watercolor", ru:"Акварель", d:"Как в книжке"},
+  {id:"pixel", ru:"Пиксель-арт", d:"16-бит"}
+];
+const MOODS = [
+  {id:"funny", ru:"😂 Смешное"}, {id:"cute", ru:"🥹 Милое"}, {id:"epic", ru:"⚔️ Эпичное"},
+  {id:"spooky", ru:"👻 Жутковатое"}, {id:"touching", ru:"💔 Трогательное"}, {id:"absurd", ru:"🤪 Абсурд"}
+];
+const NARRATORS = [
+  {id:"friendly", ru:"😊 Дружелюбный", s:n => `Привет! Это ${n}, и сегодня у него очень важный день.`},
+  {id:"dramatic", ru:"🎭 Драматичный", s:n => `В мире, где никто не верил в чудеса… ${n} решил всё изменить.`},
+  {id:"kid", ru:"🧒 Детский", s:n => `Смотрите-смотрите! ${n} нашёл что-то ну очень интересное!`},
+  {id:"sarcastic", ru:"😏 Саркастичный", s:n => `Это ${n}. Он уверен, что всё под контролем. Спойлер: нет.`},
+  {id:"docu", ru:"🦁 Документалка", s:n => `Перед нами ${n} в естественной среде обитания. Осторожен и любопытен.`},
+  {id:"whisper", ru:"🤫 Шёпот", s:n => `Тсс… ${n} ещё не знает, что за ним наблюдают.`}
+];
+const DURATIONS = [{id:15, ru:"15 сек", n:3}, {id:30, ru:"30 сек", n:4}, {id:60, ru:"60 сек", n:6}];
+const RATIOS = [
+  {id:"9:16", ru:"9:16 Shorts", w:9, h:16}, {id:"1:1", ru:"1:1 Пост", w:13, h:13},
+  {id:"4:5", ru:"4:5 Instagram", w:11, h:14}, {id:"16:9", ru:"16:9 YouTube", w:18, h:10}
+];
+const LANGS = [{id:"ru", ru:"🇷🇺 Русский"}, {id:"en", ru:"🇬🇧 English"}];
+const LOCATIONS = [
+  {id:"any", ru:"🎲 Любое", e:""}, {id:"city", ru:"🏙 Город", e:"🏙"}, {id:"forest", ru:"🌲 Лес", e:"🌲"},
+  {id:"space", ru:"🚀 Космос", e:"🚀"}, {id:"kitchen", ru:"🍳 Кухня", e:"🍳"},
+  {id:"underwater", ru:"🐠 Под водой", e:"🐠"}, {id:"castle", ru:"🏰 Замок", e:"🏰"},
+  {id:"school", ru:"🏫 Школа", e:"🏫"}, {id:"desert", ru:"🏜 Пустыня", e:"🏜"}
+];
+const TIMES = [
+  {id:"any", ru:"Любое", g:null}, {id:"morning", ru:"Утро", g:["#FFE29F","#FFA99F"]},
+  {id:"day", ru:"День", g:["#BDE6FF","#7EC8F0"]}, {id:"sunset", ru:"Закат", g:["#FEB47B","#FF7E5F"]},
+  {id:"night", ru:"Ночь", g:["#2C5364","#0F2027"]}
+];
+const PALETTES = [
+  {id:"sunset", title:"Тёплый закат", colors:[["#FF7A59","coral"],["#FFC145","golden yellow"],["#8E3B46","deep burgundy"]]},
+  {id:"pastel", title:"Пастель", colors:[["#F7C8E0","pastel pink"],["#B4E4FF","baby blue"],["#DFFFD8","mint"]]},
+  {id:"neon", title:"Неон", colors:[["#FF2E97","neon pink"],["#00F0FF","electric cyan"],["#7B2FFF","violet"]]},
+  {id:"forest", title:"Лес", colors:[["#2D6A4F","forest green"],["#95D5B2","sage"],["#D4A373","warm wood brown"]]},
+  {id:"ocean", title:"Океан", colors:[["#03045E","navy"],["#0096C7","ocean blue"],["#CAF0F8","foam white"]]},
+  {id:"autumn", title:"Осень", colors:[["#BC4749","brick red"],["#F2A541","pumpkin orange"],["#6A994E","olive green"]]},
+  {id:"candy", title:"Конфета", colors:[["#FF6B6B","candy red"],["#FFD93D","lemon yellow"],["#6BCB77","apple green"]]},
+  {id:"night", title:"Ночь", colors:[["#1B1B3A","midnight blue"],["#693668","plum"],["#F6E27F","moonlight yellow"]]}
+];
+const NAMED = [
+  ["#E53935","red"],["#B71C1C","crimson"],["#FB8C00","orange"],["#FF7F50","coral"],["#FFC107","gold"],
+  ["#FFEB3B","yellow"],["#CDDC39","lime"],["#43A047","green"],["#98FF98","mint"],["#009688","teal"],
+  ["#00BCD4","cyan"],["#87CEEB","sky blue"],["#1E88E5","blue"],["#0D1B4C","navy"],["#8E24AA","purple"],
+  ["#B39DDB","lavender"],["#EC407A","pink"],["#F8BBD0","pastel pink"],["#795548","brown"],["#E8D8B8","beige"],
+  ["#FAFAFA","white"],["#BDBDBD","light gray"],["#424242","charcoal"],["#111111","black"]
+];
+
+
+
+// ================= Состояние =================
+function defaults() {
+  return {
+    v: 3,
+    assistant: { persona: "universal", length: "normal", tone: "friendly", lang: "auto", emoji: true },
+    media: { circleEffect: "zoomin", circleDur: 5, stickerShape: "asis", stickerOutline: true, stickerEmoji: "😀" },
+    style: "pixar", mood: "funny", narrator: "friendly", duration: 60, ratio: "9:16", lang: "ru",
+    location: "any", time: "any",
+    palette: { id: "none", title: "Без палитры", colors: [] },
+    useChar: false,
+    char: { name: "", species: "cat", speciesCustom: "", build: "chubby", color: "ginger",
+            eyes: "green", acc: [], traits: [], extra: "" }
+  };
+}
+let state = defaults();
+
+function loadFromUrl() {
+  const s = new URLSearchParams(location.search).get("s");
+  if (!s) return;
+  try {
+    let b64 = s.replace(/-/g, "+").replace(/_/g, "/");
+    while (b64.length % 4) b64 += "=";
+    const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    const saved = JSON.parse(new TextDecoder().decode(bytes));
+    const d = defaults();
+    state = { ...d, ...saved,
+      char: { ...d.char, ...(saved.char || {}) }, palette: { ...d.palette, ...(saved.palette || {}) },
+      assistant: { ...d.assistant, ...(saved.assistant || {}) }, media: { ...d.media, ...(saved.media || {}) } };
+  } catch (e) { console.warn("Не удалось прочитать настройки", e); }
+}
+
+const find = (arr, id) => arr.find(x => x.id === id) || arr[0];
+const haptic = () => { try { tg && tg.HapticFeedback.selectionChanged(); } catch (e) {} };
+const $ = id => document.getElementById(id);
+const isHuman = sp => sp === "girl" || sp === "boy";
+
+// ================= Рисование героя =================
+function shade(hex, p) {
+  let c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+  const t = p < 0 ? 0 : 255, f = Math.abs(p);
+  c = c.map(v => Math.round((t - v) * f + v));
+  return "#" + c.map(v => v.toString(16).padStart(2, "0")).join("");
+}
+const GEO = {
+  tiny:   { bw: 20, bh: 17, hr: 25 }, chubby: { bw: 33, bh: 24, hr: 27 },
+  fluffy: { bw: 31, bh: 23, hr: 28 }, slim:   { bw: 19, bh: 27, hr: 25 },
+  round:  { bw: 30, bh: 27, hr: 28 }
+};
+const STYLE_BG = { pixar:["#D7ECFF","#A9D2FF"], clay:["#F6E7D8","#E9CDB2"], anime:["#FFE3F0","#FFC4DE"],
+  cartoon:["#FFF4C2","#FFE38A"], lowpoly:["#E3E9FF","#B9C6F5"], watercolor:["#FBF6EC","#F1E6D2"], pixel:["#3A3A6E","#23234A"] };
+let uidc = 0;
+
+function heroSVG(c, style, mood, bgColors) {
+  const id = "h" + (uidc++);
+  const human = isHuman(c.species);
+  const base = find(COLORS, c.color).hex;
+  const skin = "#F2C9A5";
+  const headCol = human ? skin : base;
+  const G = GEO[c.build] || GEO.chubby;
+  const hx = 60, hr = G.hr;
+  const by = 117 - G.bh;               // центр тела
+  const hy = by - G.bh - hr * 0.55;    // центр головы
+  const neckY = hy + hr * 0.9;
+  const dark = shade(base, -0.38), light = shade(base, 0.45);
+  const sp = c.species;
+
+  // заливки и контуры по стилю
+  const outline = style === "cartoon" ? `stroke="#1b1b1b" stroke-width="3" stroke-linejoin="round"`
+                : style === "anime" ? `stroke="${shade(base, -0.6)}" stroke-width="1.6"` : "";
+  const bodyFill = style === "pixar" ? `url(#${id}gb)` : base;
+  const headFill = style === "pixar" ? `url(#${id}gh)` : headCol;
+  const fx = style === "clay" || style === "watercolor" ? `filter="url(#${id}f)"` : "";
+  const grad = (gid, col) => `<radialGradient id="${id}${gid}" cx="35%" cy="28%" r="80%">
+      <stop offset="0" stop-color="${shade(col, .5)}"/><stop offset=".55" stop-color="${col}"/><stop offset="1" stop-color="${shade(col, -.4)}"/></radialGradient>`;
+
+  let defs = grad("gb", base) + grad("gh", headCol);
+  if (style === "clay") defs += `<filter id="${id}f"><feTurbulence type="fractalNoise" baseFrequency=".07" numOctaves="2" seed="4" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="3.5"/></filter>`;
+  if (style === "watercolor") defs += `<filter id="${id}f" x="-15%" y="-15%" width="130%" height="130%"><feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="3" seed="9" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="8" result="d"/><feGaussianBlur in="d" stdDeviation=".7"/></filter>`;
+  defs += `<pattern id="${id}p" width="14" height="14" patternUnits="userSpaceOnUse">
+      <polygon points="0,0 14,0 0,14" fill="#fff" opacity=".22"/><polygon points="14,0 14,14 0,14" fill="#000" opacity=".14"/></pattern>`;
+  const bg = bgColors || STYLE_BG[style];
+  defs += `<linearGradient id="${id}bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${bg[0]}"/><stop offset="1" stop-color="${bg[bg.length - 1]}"/></linearGradient>`;
+
+  const back = [], body = [], head = [], face = [], top = [];
+
+  // --- за телом ---
+  if (c.acc.includes("cape")) back.push(`<path d="M${hx - hr * .6} ${neckY} Q${hx - G.bw * 1.5} ${by + G.bh} ${hx - G.bw * 1.15} ${by + G.bh + 3}
+      L${hx + G.bw * 1.15} ${by + G.bh + 3} Q${hx + G.bw * 1.5} ${by + G.bh} ${hx + hr * .6} ${neckY} Z" fill="#C62828" ${outline}/>`);
+  if (c.acc.includes("backpack")) back.push(`<rect x="${hx + G.bw * .45}" y="${by - 15}" width="16" height="25" rx="5" fill="#8D6E63" ${outline}/>`);
+  if (sp === "dragon") back.push(`<path d="M${hx - G.bw * .6} ${by - 8} L${hx - G.bw * 1.6} ${by - G.bh - 12} L${hx - G.bw * 1.3} ${by} Z
+      M${hx + G.bw * .6} ${by - 8} L${hx + G.bw * 1.6} ${by - G.bh - 12} L${hx + G.bw * 1.3} ${by} Z" fill="${dark}" ${outline}/>`);
+  if (style === "pixar" || style === "clay") back.push(`<ellipse cx="${hx}" cy="${by + G.bh + 1}" rx="${G.bw * 1.1}" ry="4" fill="#000" opacity=".18"/>`);
+
+  // --- тело ---
+  if (sp === "robot") body.push(`<rect x="${hx - G.bw}" y="${by - G.bh}" width="${G.bw * 2}" height="${G.bh * 2}" rx="10" fill="${bodyFill}" ${outline}/>
+      <rect x="${hx - 9}" y="${by - 6}" width="18" height="12" rx="3" fill="${dark}"/>
+      <circle cx="${hx - 4}" cy="${by}" r="2" fill="#FF5252"/><circle cx="${hx + 4}" cy="${by}" r="2" fill="#69F0AE"/>`);
+  else {
+    body.push(`<ellipse cx="${hx}" cy="${by}" rx="${G.bw}" ry="${G.bh}" fill="${bodyFill}" ${outline}/>`);
+    if (!human) body.push(`<ellipse cx="${hx}" cy="${by + 4}" rx="${G.bw * .55}" ry="${G.bh * .65}" fill="${light}" opacity=".55"/>`);
+    if (c.build === "fluffy") for (let i = 0; i < 9; i++) {  // пучки шерсти по верхнему краю тела
+      const a = Math.PI * (1.1 + i * 0.1);
+      body.push(`<circle cx="${hx + Math.cos(a) * G.bw * 0.98}" cy="${by + Math.sin(a) * G.bh * 0.98}" r="4.5" fill="${base}"/>`);
+    }
+  }
+  if (sp === "owl") body.push(`<ellipse cx="${hx - G.bw * .85}" cy="${by}" rx="7" ry="${G.bh * .8}" fill="${dark}" ${outline}/>
+      <ellipse cx="${hx + G.bw * .85}" cy="${by}" rx="7" ry="${G.bh * .8}" fill="${dark}" ${outline}/>`);
+
+  // --- голова и уши ---
+  const tri = (pts, fill) => `<polygon points="${pts}" fill="${fill}" ${outline}/>`;
+  if (sp === "cat" || sp === "fox") {
+    const tip = sp === "fox" ? 1.35 : 1.15;
+    for (const s of [-1, 1]) {
+      head.push(tri(`${hx + s * hr * .92},${hy - hr * .2} ${hx + s * hr * .6},${hy - hr * tip} ${hx + s * hr * .12},${hy - hr * .82}`, headFill));
+      head.push(`<polygon points="${hx + s * hr * .75},${hy - hr * .4} ${hx + s * hr * .58},${hy - hr * (tip - .2)} ${hx + s * hr * .32},${hy - hr * .78}"
+        fill="${sp === "fox" ? "#fff" : "#F8A5C2"}" opacity=".9"/>`);
+    }
+  }
+  if (sp === "bunny") for (const s of [-1, 1]) head.push(`<ellipse cx="${hx + s * hr * .38}" cy="${hy - hr * 1.2}" rx="${hr * .22}" ry="${hr * .68}" fill="${headFill}" ${outline}/>
+      <ellipse cx="${hx + s * hr * .38}" cy="${hy - hr * 1.2}" rx="${hr * .1}" ry="${hr * .5}" fill="#F8A5C2"/>`);
+  if (sp === "dragon") for (const s of [-1, 1]) head.push(tri(`${hx + s * hr * .55},${hy - hr * .7} ${hx + s * hr * .8},${hy - hr * 1.35} ${hx + s * hr * .25},${hy - hr * .9}`, "#F5E6C8"));
+  if (sp === "owl") for (const s of [-1, 1]) head.push(tri(`${hx + s * hr * .95},${hy - hr * .35} ${hx + s * hr * .85},${hy - hr * 1.15} ${hx + s * hr * .45},${hy - hr * .82}`, dark));
+  if (sp === "alien") for (const s of [-1, 1]) head.push(`<line x1="${hx + s * hr * .35}" y1="${hy - hr * .8}" x2="${hx + s * hr * .6}" y2="${hy - hr * 1.45}" stroke="${dark}" stroke-width="2.5"/>
+      <circle cx="${hx + s * hr * .6}" cy="${hy - hr * 1.45}" r="4.5" fill="#FFEB3B" ${outline}/>`);
+  if (sp === "robot") head.push(`<line x1="${hx}" y1="${hy - hr * .8}" x2="${hx}" y2="${hy - hr * 1.3}" stroke="${dark}" stroke-width="3"/>
+      <circle cx="${hx}" cy="${hy - hr * 1.32}" r="5" fill="#FF5252" ${outline}/>`);
+  if (sp === "girl") head.push(`<circle cx="${hx}" cy="${hy - 3}" r="${hr * 1.08}" fill="#5D3A1A"/>
+      <circle cx="${hx - hr * 1.05}" cy="${hy - hr * .55}" r="${hr * .38}" fill="#5D3A1A" ${outline}/><circle cx="${hx + hr * 1.05}" cy="${hy - hr * .55}" r="${hr * .38}" fill="#5D3A1A" ${outline}/>`);
+  if (sp === "custom") head.push(`<path d="M${hx} ${hy - hr * 1.55} l4 9 9 1 -7 6 2 9 -8 -5 -8 5 2 -9 -7 -6 9 -1z" fill="#FFD54F" ${outline}/>`);
+
+  if (sp === "robot") head.push(`<rect x="${hx - hr}" y="${hy - hr * .85}" width="${hr * 2}" height="${hr * 1.7}" rx="12" fill="${headFill}" ${outline}/>
+      <rect x="${hx - hr * .78}" y="${hy - hr * .5}" width="${hr * 1.56}" height="${hr * .95}" rx="8" fill="#1f2a36"/>`);
+  else head.push(`<circle cx="${hx}" cy="${hy}" r="${hr}" fill="${headFill}" ${outline}/>`);
+  if (style === "lowpoly") {
+    head.push(sp === "robot" ? `<rect x="${hx - hr}" y="${hy - hr * .85}" width="${hr * 2}" height="${hr * 1.7}" rx="12" fill="url(#${id}p)"/>`
+                             : `<circle cx="${hx}" cy="${hy}" r="${hr}" fill="url(#${id}p)"/>`);
+    body.push(`<ellipse cx="${hx}" cy="${by}" rx="${G.bw}" ry="${G.bh}" fill="url(#${id}p)"/>`);
+  }
+  if (style === "anime") {
+    defs += `<clipPath id="${id}c"><circle cx="${hx}" cy="${hy}" r="${hr}"/><ellipse cx="${hx}" cy="${by}" rx="${G.bw}" ry="${G.bh}"/></clipPath>`;
+    head.push(`<g clip-path="url(#${id}c)"><ellipse cx="${hx + hr * 1.05}" cy="${hy + 12}" rx="${hr * .95}" ry="${hr * 2.4}" fill="#3a1f4a" opacity=".22"/></g>`);
+  }
+  if (sp === "owl") head.push(`<circle cx="${hx - hr * .36}" cy="${hy}" r="${hr * .34}" fill="${light}"/><circle cx="${hx + hr * .36}" cy="${hy}" r="${hr * .34}" fill="${light}"/>`);
+  if (sp === "fox") head.push(`<ellipse cx="${hx}" cy="${hy + hr * .48}" rx="${hr * .55}" ry="${hr * .38}" fill="#fff" opacity=".9"/>`);
+  if (sp === "dog") for (const s of [-1, 1]) head.push(`<ellipse cx="${hx + s * hr * .92}" cy="${hy + 2}" rx="${hr * .26}" ry="${hr * .58}" transform="rotate(${-s * 18} ${hx + s * hr * .92} ${hy + 2})" fill="${dark}" ${outline}/>`);
+  if (sp === "boy") head.push(`<path d="M${hx - hr} ${hy - 2} Q${hx - hr} ${hy - hr * 1.15} ${hx} ${hy - hr * 1.1} Q${hx + hr} ${hy - hr * 1.15} ${hx + hr} ${hy - 2}
+      L${hx + hr * .7} ${hy - hr * .45} L${hx + hr * .35} ${hy - hr * .3} L${hx} ${hy - hr * .5} L${hx - hr * .4} ${hy - hr * .3} L${hx - hr * .75} ${hy - hr * .5} Z" fill="#4E342E" ${outline}/>`);
+  if (sp === "girl") head.push(`<path d="M${hx - hr * .95} ${hy - hr * .1} Q${hx - hr * .6} ${hy - hr * 1.1} ${hx} ${hy - hr} Q${hx + hr * .6} ${hy - hr * 1.1} ${hx + hr * .95} ${hy - hr * .1}
+      Q${hx + hr * .4} ${hy - hr * .55} ${hx} ${hy - hr * .45} Q${hx - hr * .4} ${hy - hr * .55} ${hx - hr * .95} ${hy - hr * .1} Z" fill="#5D3A1A"/>`);
+
+  // --- лицо: зависит от настроения ---
+  const eyeHex = find(EYES, c.eyes).hex;
+  const ex = hr * .36, ey = hy + hr * .05;
+  let er = hr * (style === "anime" ? .25 : .19);
+  if (mood === "spooky") er *= 1.25;
+  const eye = (x, r) => c.eyes === "led"
+    ? `<rect x="${x - r * 1.1}" y="${ey - r * .8}" width="${r * 2.2}" height="${r * 1.6}" rx="${r * .7}" fill="${eyeHex}" opacity=".35"/>
+       <rect x="${x - r * .8}" y="${ey - r * .5}" width="${r * 1.6}" height="${r}" rx="${r * .5}" fill="${eyeHex}"/>`
+    : `<circle cx="${x}" cy="${ey}" r="${r}" fill="#fff"/><circle cx="${x}" cy="${ey + r * .1}" r="${r * .72}" fill="${eyeHex}"/>
+       <circle cx="${x}" cy="${ey + r * .15}" r="${r * .38}" fill="#111"/><circle cx="${x - r * .3}" cy="${ey - r * .3}" r="${r * .28}" fill="#fff"/>
+       ${style === "anime" || mood === "cute" ? `<circle cx="${x + r * .3}" cy="${ey + r * .35}" r="${r * .14}" fill="#fff"/>` : ""}`;
+  if (mood === "absurd") { face.push(eye(hx - ex, er * 1.3), eye(hx + ex, er * .75)); }
+  else face.push(eye(hx - ex, er), eye(hx + ex, er));
+
+  const my = hy + hr * .5, browY = ey - er - 4;
+  const brow = (x1, y1, x2, y2) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#222" stroke-width="2.4" stroke-linecap="round"/>`;
+  if (["cat", "dog", "fox", "bunny", "dragon"].includes(sp))
+    face.push(`<path d="M${hx - 3} ${hy + hr * .28} L${hx + 3} ${hy + hr * .28} L${hx} ${hy + hr * .36} Z" fill="${sp === "dog" ? "#222" : "#E57373"}" stroke="#222" stroke-width=".8"/>`);
+  if (sp === "owl") face.push(`<path d="M${hx - 4} ${hy + hr * .22} L${hx + 4} ${hy + hr * .22} L${hx} ${hy + hr * .42} Z" fill="#FFA000"/>`);
+  if (mood === "funny") face.push(`<path d="M${hx - 8} ${my - 2} Q${hx} ${my + 11} ${hx + 8} ${my - 2} Z" fill="#7B1F2B"/><ellipse cx="${hx}" cy="${my + 4}" rx="4" ry="2.5" fill="#F06292"/>`);
+  if (mood === "cute") face.push(`<path d="M${hx - 4} ${my} Q${hx} ${my + 4} ${hx + 4} ${my}" stroke="#222" stroke-width="2" fill="none" stroke-linecap="round"/>`);
+  if (mood === "epic") face.push(brow(hx - ex - 6, browY - 2, hx - ex + 6, browY + 3), brow(hx + ex + 6, browY - 2, hx + ex - 6, browY + 3),
+      `<line x1="${hx - 6}" y1="${my + 2}" x2="${hx + 6}" y2="${my + 1}" stroke="#222" stroke-width="2.2" stroke-linecap="round"/>`);
+  if (mood === "spooky") face.push(brow(hx - ex - 6, browY - 1, hx - ex + 6, browY - 4), brow(hx + ex + 6, browY - 1, hx + ex - 6, browY - 4),
+      `<ellipse cx="${hx}" cy="${my + 3}" rx="3" ry="4" fill="#3a1a1a"/>`);
+  if (mood === "touching") face.push(brow(hx - ex - 6, browY + 1, hx - ex + 6, browY - 3), brow(hx + ex + 6, browY + 1, hx + ex - 6, browY - 3),
+      `<path d="M${hx - 4} ${my + 1} Q${hx} ${my + 4} ${hx + 4} ${my + 1}" stroke="#222" stroke-width="2" fill="none" stroke-linecap="round"/>`,
+      `<path d="M${hx + ex + 2} ${ey + er} q-3 6 0 8 q3 -2 0 -8z" fill="#64B5F6"/>`);
+  if (mood === "absurd") face.push(brow(hx + ex - 6, browY - 6, hx + ex + 6, browY - 2),
+      `<path d="M${hx - 7} ${my} Q${hx} ${my + 6} ${hx + 7} ${my}" stroke="#222" stroke-width="2" fill="none"/><ellipse cx="${hx + 4}" cy="${my + 5}" rx="3.5" ry="5" fill="#F06292"/>`);
+  if (["funny", "cute", "touching"].includes(mood) && sp !== "robot")
+    face.push(`<ellipse cx="${hx - hr * .62}" cy="${hy + hr * .35}" rx="5" ry="3" fill="#FF7FA0" opacity="${mood === "cute" ? .6 : .35}"/>
+      <ellipse cx="${hx + hr * .62}" cy="${hy + hr * .35}" rx="5" ry="3" fill="#FF7FA0" opacity="${mood === "cute" ? .6 : .35}"/>`);
+
+  // --- аксессуары поверх ---
+  if (c.acc.includes("glasses")) top.push(`<circle cx="${hx - ex}" cy="${ey}" r="${er * 1.45}" fill="#fff" fill-opacity=".12" stroke="#222" stroke-width="2.4"/>
+      <circle cx="${hx + ex}" cy="${ey}" r="${er * 1.45}" fill="#fff" fill-opacity=".12" stroke="#222" stroke-width="2.4"/>
+      <line x1="${hx - ex + er * 1.45}" y1="${ey}" x2="${hx + ex - er * 1.45}" y2="${ey}" stroke="#222" stroke-width="2.4"/>`);
+  if (c.acc.includes("headphones")) top.push(`<path d="M${hx - hr * 1.02} ${hy + 2} A${hr * 1.06} ${hr * 1.06} 0 0 1 ${hx + hr * 1.02} ${hy + 2}" stroke="#37474F" stroke-width="5" fill="none"/>
+      <rect x="${hx - hr * 1.18}" y="${hy - 6}" width="10" height="18" rx="4" fill="#37474F"/><rect x="${hx + hr * 1.18 - 10}" y="${hy - 6}" width="10" height="18" rx="4" fill="#37474F"/>`);
+  if (c.acc.includes("cap")) top.push(`<path d="M${hx - hr * .95} ${hy - hr * .32} A${hr * .97} ${hr * .78} 0 0 1 ${hx + hr * .95} ${hy - hr * .32} Z" fill="#1E88E5" ${outline}/>
+      <ellipse cx="${hx + hr * .62}" cy="${hy - hr * .3}" rx="${hr * .62}" ry="4" fill="#1565C0" ${outline}/>`);
+  if (c.acc.includes("crown")) { const y = hy - hr * .92 - (c.acc.includes("cap") ? hr * .35 : 0);
+    top.push(`<polygon points="${hx - 14},${y} ${hx - 14},${y - 12} ${hx - 7},${y - 5} ${hx},${y - 15} ${hx + 7},${y - 5} ${hx + 14},${y - 12} ${hx + 14},${y}" fill="#FFC107" stroke="#C79100" stroke-width="1.5"/>`); }
+  if (c.acc.includes("scarf")) top.push(`<rect x="${hx - hr * .78}" y="${neckY - 5}" width="${hr * 1.56}" height="10" rx="5" fill="#E53935" ${outline}/>
+      <rect x="${hx + hr * .2}" y="${neckY + 2}" width="8" height="17" rx="3" fill="#C62828" transform="rotate(-12 ${hx + hr * .2} ${neckY})" ${outline}/>`);
+  if (c.acc.includes("bowtie")) top.push(`<polygon points="${hx},${neckY + 1} ${hx - 10},${neckY - 5} ${hx - 10},${neckY + 7}" fill="#E91E63" ${outline}/>
+      <polygon points="${hx},${neckY + 1} ${hx + 10},${neckY - 5} ${hx + 10},${neckY + 7}" fill="#E91E63" ${outline}/><circle cx="${hx}" cy="${neckY + 1}" r="3" fill="#AD1457"/>`);
+  if (c.acc.includes("backpack")) top.push(`<line x1="${hx + G.bw * .35}" y1="${neckY + 2}" x2="${hx + G.bw * .55}" y2="${by + 6}" stroke="#5D4037" stroke-width="3"/>`);
+
+  const paper = style === "watercolor" ? `<rect width="120" height="120" fill="url(#${id}p)" opacity=".15"/>` : "";
+  const groupStyle = style === "watercolor" ? `opacity=".88"` : "";
+  return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg"><defs>${defs}</defs>
+    <rect width="120" height="120" fill="url(#${id}bg)"/>${paper}
+    <g ${fx} ${groupStyle}>${back.join("")}${body.join("")}${head.join("")}${face.join("")}${top.join("")}</g></svg>`;
+}
+
+// Пиксель-арт: рисуем SVG в маленький холст и растягиваем без сглаживания
+let mountToken = 0;
+function mount(el, svg, pixel) {
+  if (!pixel) { el.innerHTML = svg; return; }
+  const token = ++mountToken; el.dataset.token = token;
+  const img = new Image();
+  img.onload = () => {
+    if (el.dataset.token != token) return;
+    const cv = document.createElement("canvas");
+    cv.width = 34; cv.height = 34; cv.className = "pix";
+    const ctx = cv.getContext("2d"); ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, 0, 0, 34, 34);
+    el.innerHTML = ""; el.appendChild(cv);
+  };
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+}
+
+
+
+// ================= Отрисовка =================
+function chips(el, items, isOn, onClick, render) {
+  el.innerHTML = "";
+  items.forEach(it => {
+    const b = document.createElement("button");
+    b.className = "chip" + (isOn(it) ? " on" : "");
+    b.innerHTML = render ? render(it) : it.ru;
+    b.onclick = () => { haptic(); onClick(it); renderAll(); };
+    el.appendChild(b);
+  });
+}
+function toggleIn(list, id, max) {
+  const i = list.indexOf(id);
+  if (i >= 0) list.splice(i, 1);
+  else if (list.length < max) list.push(id);
+  else { try { tg && tg.HapticFeedback.notificationOccurred("warning"); } catch (e) {} }
+}
+function mountThumb(el, svg, pixel) {
+  if (!pixel) { el.innerHTML = svg; return; }
+  const img = new Image();
+  img.onload = () => {
+    const cv = document.createElement("canvas"); cv.width = 34; cv.height = 34; cv.className = "pix";
+    const ctx = cv.getContext("2d"); ctx.imageSmoothingEnabled = false; ctx.drawImage(img, 0, 0, 34, 34);
+    el.innerHTML = ""; el.appendChild(cv);
+  };
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+}
+
+// --- Главная ---
+function renderHome() {
+  const tl = $("tiles");
+  if (!tl.children.length) TOOLS.forEach(t => {
+    const b = document.createElement("button");
+    b.className = "tile";
+    b.innerHTML = `${t.pv}<b>${t.t}</b><span>${t.d}</span>`;
+    b.onclick = () => { haptic(); send("mode", t.id); };
+    tl.appendChild(b);
+  });
+  const q = $("quick");
+  if (!q.children.length) QUICK.forEach(text => {
+    const b = document.createElement("button");
+    b.className = "chip"; b.textContent = text.replace(/[: ]+$/, "");
+    b.onclick = () => { haptic(); const ta = $("askText"); ta.value = text; ta.focus(); $("askBtn").disabled = false; };
+    q.appendChild(b);
+  });
+}
+
+// --- ИИ ---
+function sampleAnswer() {
+  const a = state.assistant, p = find(PERSONAS, a.persona);
+  const start = { friendly: "Отличный вопрос! ", formal: "", humor: "Держись крепче, сейчас будет магия. " }[a.tone];
+  let text = start + p.a;
+  if (a.length === "short") text = p.a;
+  if (a.length === "long") text += "\n\n• Почему это работает\n• Частые ошибки\n• Пример на практике";
+  if (a.lang === "en") text = "(answer in English) " + text;
+  if (a.emoji) text += a.tone === "humor" ? " 😄✨" : " 🙂";
+  return { q: p.q, a: text };
+}
+function renderAI() {
+  const a = state.assistant;
+  const pl = $("personas"); pl.innerHTML = "";
+  PERSONAS.forEach(p => {
+    const b = document.createElement("button");
+    b.className = "card" + (a.persona === p.id ? " on" : "");
+    b.innerHTML = `<span class="big">${p.e}</span><b>${p.ru}</b><span>${p.d}</span>`;
+    b.onclick = () => { haptic(); a.persona = p.id; renderAll(); };
+    pl.appendChild(b);
+  });
+  chips($("lengths"), LENGTHS, it => it.id === a.length, it => a.length = it.id);
+  chips($("tones"), TONES, it => it.id === a.tone, it => a.tone = it.id);
+  chips($("alang"), ALANGS, it => it.id === a.lang, it => a.lang = it.id);
+  $("emoji").checked = a.emoji;
+  const s = sampleAnswer();
+  $("dialog").innerHTML = "";
+  const me = document.createElement("div"); me.className = "msg me"; me.textContent = s.q;
+  const ai = document.createElement("div"); ai.className = "msg ai"; ai.textContent = s.a;
+  $("dialog").append(me, ai);
+}
+
+// --- Фото ---
+function renderMedia() {
+  const m = state.media;
+  chips($("effects"), EFFECTS, it => it.id === m.circleEffect, it => m.circleEffect = it.id);
+  chips($("cdur"), CDURS, it => it.id === m.circleDur, it => m.circleDur = it.id);
+  chips($("shapes"), SHAPES, it => it.id === m.stickerShape, it => m.stickerShape = it.id);
+  chips($("emojis"), STICKER_EMOJI.map(e => ({id: e, ru: e})), it => it.id === m.stickerEmoji, it => m.stickerEmoji = it.id);
+  $("outline").checked = m.stickerOutline;
+
+  // образец «фото» — твой герой на фоне неба
+  const photo = heroSVG(state.char, "pixar", "funny", ["#7EC8F0", "#CFEFFF"]);
+  const ci = $("circleImg");
+  ci.innerHTML = photo;
+  const anim = { zoomin: "zoomin", zoomout: "zoomout", pan: "pan", pulse: "pulse" }[m.circleEffect];
+  const timing = m.circleEffect === "pulse" ? "ease-in-out infinite" : "ease-in-out infinite alternate";
+  ci.style.animation = `${anim} ${m.circleEffect === "pulse" ? 1.6 : m.circleDur}s ${timing}`;
+  $("circleRing").style.setProperty("--dur", m.circleDur + "s");
+
+  const art = $("stickerArt");
+  art.className = "art" + (m.stickerShape === "circle" ? " circle-shape" : m.stickerShape === "rounded" ? " rounded" : "")
+                + (m.stickerOutline ? " outline" : "");
+  // «Как есть» — показываем героя без фона, будто он вырезан
+  $("stickerImg").innerHTML = m.stickerShape === "asis"
+    ? photo.replace(/<rect width="120" height="120"[^>]*\/>/, "")
+    : photo;
+  $("stickerImg").style.cssText = "width:100%;height:100%;overflow:hidden;border-radius:inherit";
+  $("stickerEmo").textContent = m.stickerEmoji;
+}
+
+function heroName() { return state.char.name.trim() || (state.useChar ? "наш герой" : "Барсик"); }
+
+function renderShorts() {
+  const c = state.char;
+  chips($("species"), SPECIES, it => it.id === c.species, it => c.species = it.id, it => `${it.e} ${it.ru}`);
+  $("speciesCustom").classList.toggle("hidden", c.species !== "custom");
+  chips($("build"), BUILD, it => it.id === c.build, it => c.build = it.id);
+  $("colorTitle").textContent = isHuman(c.species) ? "Цвет одежды" : "Окрас";
+  chips($("color"), COLORS, it => it.id === c.color, it => c.color = it.id,
+        it => `<i class="dot" style="background:${it.hex}"></i>${it.ru}`);
+  chips($("eyes"), EYES, it => it.id === c.eyes, it => c.eyes = it.id,
+        it => `<i class="dot" style="background:${it.hex}"></i>${it.ru}`);
+  chips($("acc"), ACC, it => c.acc.includes(it.id), it => toggleIn(c.acc, it.id, 3));
+  chips($("traits"), TRAITS.map(t => ({id: t, ru: t})), it => c.traits.includes(it.id), it => toggleIn(c.traits, it.id, 3));
+
+  // Стили: превью героя в каждом стиле
+  const st = $("styles"); st.innerHTML = "";
+  STYLES.forEach(it => {
+    const b = document.createElement("button");
+    b.className = "card" + (state.style === it.id ? " on" : "");
+    b.innerHTML = `<div class="thumb"></div><b>${it.ru}</b><span>${it.d}</span>`;
+    b.onclick = () => { haptic(); state.style = it.id; renderAll(); };
+    st.appendChild(b);
+    const thumb = b.querySelector(".thumb");
+    thumb.dataset.token = "";
+    mountThumb(thumb, heroSVG(c, it.id, state.mood), it.id === "pixel");
+  });
+  chips($("moods"), MOODS, it => it.id === state.mood, it => state.mood = it.id);
+  chips($("narrators"), NARRATORS, it => it.id === state.narrator, it => state.narrator = it.id);
+  const nar = find(NARRATORS, state.narrator);
+  $("narrSample").innerHTML = `<small>Пример озвучки</small>«${nar.s(heroName())}»`;
+  chips($("duration"), DURATIONS, it => it.id === state.duration, it => state.duration = it.id);
+  const dn = find(DURATIONS, state.duration).n;
+  $("sceneBar").innerHTML = "<i></i>".repeat(dn);
+  $("sceneNote").textContent = `≈ ${dn} сцен${dn < 5 ? "ы" : ""}, у каждой своя картинка и озвучка`;
+  chips($("ratio"), RATIOS, it => it.id === state.ratio, it => state.ratio = it.id,
+        it => `<i class="ar" style="width:${it.w}px;height:${it.h}px"></i>${it.ru}`);
+  chips($("lang"), LANGS, it => it.id === state.lang, it => state.lang = it.id);
+
+  // Мир
+  chips($("locations"), LOCATIONS, it => it.id === state.location, it => state.location = it.id);
+  chips($("times"), TIMES, it => it.id === state.time, it => state.time = it.id,
+        it => it.g ? `<i class="dot" style="background:linear-gradient(${it.g.join(",")})"></i>${it.ru}` : `🎲 ${it.ru}`);
+
+  const pl = $("palettes"); pl.innerHTML = "";
+  [{ id: "none", title: "Без палитры", colors: [] }, ...PALETTES].forEach(p => {
+    const b = document.createElement("button");
+    b.className = "card" + (state.palette.id === p.id ? " on" : "");
+    const sw = p.colors.length
+      ? p.colors.map(([hex]) => `<i style="background:${hex}"></i>`).join("")
+      : `<i style="background:repeating-linear-gradient(45deg,var(--hint) 0 4px,transparent 4px 8px);opacity:.4"></i>`;
+    b.innerHTML = `<div class="swatches">${sw}</div><b>${p.title}</b>`;
+    b.onclick = () => {
+      haptic();
+      state.palette = { id: p.id, title: p.title, colors: p.colors.map(([hex, name]) => ({ hex, name })) };
+      renderAll();
+    };
+    pl.appendChild(b);
+  });
+  if (state.palette.colors.length === 3) state.palette.colors.forEach((col, i) => { $("c" + i).value = col.hex; });
+
+  // Превью сверху: фон = время суток, иначе палитра, иначе цвет стиля
+  const t = find(TIMES, state.time);
+  const bg = t.g || (state.palette.colors.length ? state.palette.colors.map(x => x.hex) : null);
+  mount($("stage"), heroSVG(c, state.style, state.mood, bg), state.style === "pixel");
+  $("locIcon").textContent = find(LOCATIONS, state.location).e;
+  $("pvName").textContent = state.useChar ? (c.name.trim() || "Без имени") : "Герой выключен";
+  $("pvMeta").textContent = [find(STYLES, state.style).ru, find(MOODS, state.mood).ru.split(" ").slice(1).join(" "),
+                             state.duration + " сек", state.ratio].join(" · ");
+  $("pvPrompt").textContent = state.useChar ? charPromptText() : "Бот придумает персонажа сам. Включи «Герой во всех роликах», чтобы закрепить этого.";
+  $("useChar").checked = state.useChar;
+}
+
+const SP_EN = { cat:"cat", dog:"puppy", fox:"fox", bunny:"bunny", owl:"owl", dragon:"baby dragon", robot:"small robot",
+  alien:"cute alien", girl:"little girl", boy:"little boy" };
+const EYES_EN = { green:"big green eyes", blue:"big blue eyes", amber:"big amber eyes", brown:"warm brown eyes", led:"glowing LED eyes" };
+const ACC_EN = { scarf:"a cozy knitted scarf", glasses:"round glasses", backpack:"a tiny backpack", bowtie:"a bow tie",
+  crown:"a tiny golden crown", headphones:"big headphones", cap:"a baseball cap", cape:"a superhero cape" };
+function charPromptText() {  // только для показа; бот собирает такой же текст сам
+  const c = state.char;
+  const sp = c.species === "custom" ? (c.speciesCustom.trim() || "character") : SP_EN[c.species];
+  const col = isHuman(c.species) ? `in ${c.color} clothes` : "";
+  let s = isHuman(c.species) ? `a ${c.build} ${sp} ${col} with ${EYES_EN[c.eyes]}` : `a ${c.build} ${c.color} ${sp} with ${EYES_EN[c.eyes]}`;
+  if (c.acc.length) s += ", wearing " + c.acc.map(a => ACC_EN[a]).join(" and ");
+  return s;
+}
+
+
+
+function renderAll() { renderHome(); renderAI(); renderMedia(); renderShorts(); }
+
+function nearestName(hex) {
+  const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const [r, g, b] = rgb(hex);
+  let best = NAMED[0], dist = Infinity;
+  NAMED.forEach(n => {
+    const [r2, g2, b2] = rgb(n[0]);
+    const d = (r - r2) ** 2 + (g - g2) ** 2 + (b - b2) ** 2;
+    if (d < dist) { dist = d; best = n; }
+  });
+  return best[1];
+}
+
+// ================= События =================
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+  haptic();
+  document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll(".panel").forEach(p => p.classList.toggle("on", p.id === "tab-" + b.dataset.tab));
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+document.querySelectorAll(".subtabs button").forEach(b => b.onclick = () => {
+  haptic();
+  document.querySelectorAll(".subtabs button").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll(".sub").forEach(p => p.classList.toggle("on", p.id === "sub-" + b.dataset.sub));
+});
+$("askText").oninput = () => { $("askBtn").disabled = !$("askText").value.trim(); };
+$("askBtn").onclick = () => send("ask", $("askText").value);
+$("emoji").onchange = e => { haptic(); state.assistant.emoji = e.target.checked; renderAll(); };
+$("outline").onchange = e => { haptic(); state.media.stickerOutline = e.target.checked; renderAll(); };
+
+$("useChar").onchange = e => { haptic(); state.useChar = e.target.checked; renderAll(); };
+$("name").oninput = e => { state.char.name = e.target.value; renderAll(); };
+$("speciesCustom").oninput = e => { state.char.speciesCustom = e.target.value; renderAll(); };
+$("extra").oninput = e => { state.char.extra = e.target.value; };
+[0, 1, 2].forEach(i => $("c" + i).oninput = () => {
+  const colors = [0, 1, 2].map(k => { const hex = $("c" + k).value; return { hex, name: nearestName(hex) }; });
+  state.palette = { id: "custom", title: "Свои цвета", colors };
+  renderAll();
+});
+$("random").onclick = () => {
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+  const shuffle = a => [...a].sort(() => Math.random() - .5);
+  const c = state.char;
+  c.species = pick(SPECIES.filter(s => s.id !== "custom")).id;
+  c.build = pick(BUILD).id; c.color = pick(COLORS).id; c.eyes = pick(EYES).id;
+  c.acc = shuffle(ACC).slice(0, 1 + Math.floor(Math.random() * 2)).map(a => a.id);
+  c.traits = shuffle(TRAITS).slice(0, 2);
+  c.name = pick(NAMES); $("name").value = c.name;
+  state.useChar = true;
+  try { tg && tg.HapticFeedback.impactOccurred("medium"); } catch (e) {}
+  renderAll();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
+$("reset").onclick = () => {
+  const go = () => { state = defaults(); fillInputs(); renderAll(); };
+  if (inTelegram && tg.showConfirm) tg.showConfirm("Сбросить все настройки?", ok => ok && go());
+  else if (confirm("Сбросить все настройки?")) go();
+};
+const enableBy = (inputId, btnId) => $(inputId).oninput = () => { $(btnId).disabled = !$(inputId).value.trim(); };
+enableBy("aiHero", "aiHeroBtn");
+enableBy("aiIdea", "aiGenBtn");
+$("aiHeroBtn").onclick = () => send("ai_hero", $("aiHero").value);
+$("aiIdeasBtn").onclick = () => send("ideas", $("aiTopic").value);
+$("aiGenBtn").onclick = () => send("generate", $("aiIdea").value);
+
+function fillInputs() {
+  $("name").value = state.char.name;
+  $("speciesCustom").value = state.char.speciesCustom;
+  $("extra").value = state.char.extra;
+}
+
+// Отправка боту: мини-апп закрывается, ответ приходит в чат
+function send(action, text) {
+  const data = JSON.stringify({ action, text: (text || "").trim().slice(0, 400), state });
+  if (inTelegram) {
+    try { tg.sendData(data); }
+    catch (e) { tg.showAlert("Открой мини-апп кнопкой «🧰 Меню» под полем ввода в чате с ботом."); }
+  } else {
+    alert("Это превью вне Телеграма. В боте сюда придёт ответ.\n\n" + data.slice(0, 300) + "…");
+  }
+}
+
+// ================= Старт =================
+loadFromUrl();
+fillInputs();
+renderAll();
+if (inTelegram) {
+  tg.MainButton.setParams({ text: "💾 Сохранить настройки" });
+  tg.MainButton.show();
+  tg.MainButton.onClick(() => send("save", ""));
+} else {
+  $("fallbackSave").style.display = "block";
+  $("fallbackSave").onclick = () => send("save", "");
+}
+</script>
+</body>
+</html>
