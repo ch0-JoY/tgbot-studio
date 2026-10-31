@@ -21,7 +21,7 @@
   .wrap { max-width: 560px; margin: 0 auto; padding: 12px 16px 96px; }
 
   /* Главные вкладки */
-  .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--bg2);
+  .tabs { display: grid; grid-template-columns: 0.7fr 1fr 1.1fr 1.25fr 0.7fr; gap: 4px; background: var(--bg2);
     border-radius: 12px; padding: 4px; position: sticky; top: 8px; z-index: 6;
     box-shadow: 0 4px 12px rgba(0,0,0,.15); }
   .tabs button, .subtabs button { border: 0; background: transparent; color: var(--text); padding: 9px 0;
@@ -35,6 +35,43 @@
   h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--hint);
     margin: 18px 0 8px; font-weight: 600; }
   .note { color: var(--hint); font-size: 13px; margin: -2px 0 8px; }
+
+  /* Баннер и магазин */
+  .promo { display: block; width: 100%; text-align: left; border: 0; cursor: pointer; font: inherit; color: #fff;
+    border-radius: var(--radius); padding: 12px 14px; margin-top: 14px; position: relative; overflow: hidden;
+    background: linear-gradient(135deg, #5b5bf0, #b04ae6); }
+  .promo.warn { background: linear-gradient(135deg, #f7971e, #f0503c); }
+  .promo.empty { background: linear-gradient(135deg, #e53935, #8e24aa); animation: glow 1.6s ease-in-out infinite; }
+  @keyframes glow { 0%,100% { box-shadow: 0 0 0 0 rgba(229,57,53,.5); } 50% { box-shadow: 0 0 0 6px rgba(229,57,53,0); } }
+  .promo b { display: block; font-size: 15px; } .promo small { opacity: .9; font-size: 12.5px; display: block; margin-top: 2px; }
+  .promo .top { display: flex; gap: 10px; align-items: center; }
+  .promo .txt { flex: 1; min-width: 0; }
+  .promo .go { flex: none; background: rgba(255,255,255,.22); border-radius: 999px; padding: 7px 11px; font-weight: 700; font-size: 13px; }
+  .meter { height: 8px; border-radius: 6px; background: rgba(255,255,255,.25); margin-top: 8px; overflow: hidden; }
+  .meter i { display: block; height: 100%; background: #fff; border-radius: 6px; transition: width .4s; }
+  .wallet { border-radius: 18px; padding: 16px; margin-top: 14px; color: #fff; background: linear-gradient(135deg, #5b5bf0, #b04ae6); }
+  .wallet.warn { background: linear-gradient(135deg, #f7971e, #f0503c); }
+  .wallet.empty { background: linear-gradient(135deg, #e53935, #8e24aa); }
+  .wallet h3 { margin: 0; font-size: 19px; line-height: 1.25; } .wallet p { margin: 6px 0 0; opacity: .92; font-size: 13.5px; }
+  .wallet .stats { display: flex; gap: 8px; margin-top: 12px; }
+  .wallet .stats div { flex: 1; background: rgba(255,255,255,.16); border-radius: 12px; padding: 8px 10px; }
+  .wallet .stats b { display: block; font-size: 20px; } .wallet .stats span { font-size: 11.5px; opacity: .9; }
+  .pack { display: flex; align-items: center; gap: 12px; background: var(--bg2); border-radius: var(--radius); padding: 12px;
+    margin-top: 10px; border: 1.5px solid transparent; position: relative; }
+  .pack.best { border-color: #f5b301; } .pack.pop { border-color: #ff6b4a; }
+  .pack .ico { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; font-size: 24px; flex: none;
+    background: linear-gradient(135deg, #2b5876, #4e4376); }
+  .pack .info { flex: 1; min-width: 0; } .pack .info b { font-size: 16px; display: block; }
+  .pack .info span { color: var(--hint); font-size: 12.5px; }
+  .pack .badge { position: absolute; top: -9px; left: 12px; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; color: #fff; }
+  .pack.best .badge { background: #f5b301; color: #222; } .pack.pop .badge { background: #ff6b4a; }
+  .pack button { border: 0; border-radius: 12px; padding: 10px 12px; background: var(--accent); color: var(--accent-text);
+    font: inherit; font-weight: 700; cursor: pointer; white-space: nowrap; text-align: center; line-height: 1.1; }
+  .pack button s { display: block; font-size: 11px; opacity: .7; font-weight: 500; }
+  .save { color: #2ecc71; font-weight: 700; }
+  .toast { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%) translateY(20px); opacity: 0; transition: .3s;
+    background: #111c; color: #fff; padding: 10px 16px; border-radius: 999px; z-index: 20; pointer-events: none; white-space: nowrap; }
+  .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
 
   /* Главная */
   .hello { display: flex; gap: 14px; align-items: center; margin: 14px 0 4px; }
@@ -208,10 +245,12 @@
     <button data-tab="ai">🤖 ИИ</button>
     <button data-tab="media">🖼 Фото</button>
     <button data-tab="shorts">🎬 Shorts</button>
+    <button data-tab="shop">💎</button>
   </div>
 
   <!-- ===================== ГЛАВНАЯ ===================== -->
   <section class="panel on" id="tab-home">
+    <button class="promo hidden" id="promo"></button>
     <div class="hello">
       <div class="orb"><span>✨</span></div>
       <div><h1>Чем помочь?</h1><p>Спроси что угодно или выбери инструмент — ответ придёт в чат</p></div>
@@ -253,14 +292,16 @@
 
   <!-- ===================== ФОТО ===================== -->
   <section class="panel" id="tab-media">
-    <h2>⭕ Кружок из фото</h2>
+    <h2>⭕ Кружок из твоего фото или видео</h2>
+    <div class="note">Пример на герое — бот сделает так же из твоей фотки. Из видео — обрежу в круг первые 60 секунд со звуком.</div>
     <div class="mediaprev"><div class="circle"><div class="img" id="circleImg"></div><div class="ring" id="circleRing"></div></div></div>
-    <h2>Движение камеры</h2>
+    <h2>Движение камеры (для фото)</h2>
     <div class="chips" id="effects"></div>
-    <h2>Длительность</h2>
+    <h2>Длительность (для фото)</h2>
     <div class="chips" id="cdur"></div>
 
-    <h2 style="margin-top:28px">🎨 Стикер из фото</h2>
+    <h2 style="margin-top:28px">🎨 Стикер из твоего фото или видео</h2>
+    <div class="note">Из видео или GIF получится анимированный стикер из первых 3 секунд (обводка — только для фото).</div>
     <div class="mediaprev"><div class="sticker"><div class="art" id="stickerArt"><div id="stickerImg"></div></div><span class="emo" id="stickerEmo"></span></div></div>
     <h2>Форма</h2>
     <div class="chips" id="shapes"></div>
@@ -373,9 +414,22 @@
     </div>
   </section>
 
+  <!-- ===================== ТОКЕНЫ ===================== -->
+  <section class="panel" id="tab-shop">
+    <div class="wallet" id="wallet"></div>
+    <h2>💎 Пакеты токенов</h2>
+    <div class="note">1 токен = 1 запрос к ИИ сверх бесплатного лимита или 1 сценарий Shorts. Токены не сгорают и начисляются сразу.</div>
+    <div id="packs"></div>
+    <h2 style="margin-top:24px">☕ Поддержать проект</h2>
+    <div class="note">Просто сказать «спасибо» автору звёздами — без токенов.</div>
+    <div class="chips" id="tips"></div>
+    <div class="note" style="margin-top:14px">Оплата — Telegram Stars ⭐ прямо в Телеграме. Звёзды покупаются в самом приложении.</div>
+  </section>
+
   <button class="btn" id="reset">Сбросить настройки</button>
   <button class="btn main" id="fallbackSave">💾 Сохранить</button>
 </div>
+<div class="toast" id="toast"></div>
 
 <script>
 const tg = window.Telegram && window.Telegram.WebApp;
@@ -389,9 +443,9 @@ const TOOLS = [
   {id:"ocr", t:"📝 Текст с фото", d:"Расшифрую документ, рукопись, чек", pv:`<div class="pv pv-ocr"><i></i><i></i><i></i><i></i></div>`},
   {id:"translate", t:"🌍 Перевод с фото", d:"Меню, вывеска, инструкция", pv:`<div class="pv pv-tr">Aa → <em>Яя</em></div>`},
   {id:"solve", t:"🧮 Решить задачу", d:"Математика, физика — по шагам", pv:`<div class="pv pv-solve">2x + 3 = 7<br>x = 2 <s>✓</s></div>`},
-  {id:"circle", t:"⭕ Кружок из фото", d:"Фото оживёт в видео-кружке", pv:`<div class="pv pv-circle"><div class="c"></div></div>`},
-  {id:"sticker", t:"🎨 Стикер из фото", d:"С обводкой, в личный стикерпак", pv:`<div class="pv pv-sticker"><div class="s">😎</div></div>`},
-  {id:"sticker_nobg", t:"✂️ Стикер без фона", d:"Вырежу объект с фото", pv:`<div class="pv pv-nobg">🐶</div>`},
+  {id:"circle", t:"⭕ Кружок", d:"Из твоего фото или видео", pv:`<div class="pv pv-circle"><div class="c"></div></div>`},
+  {id:"sticker", t:"🎨 Стикер", d:"Из своего фото или видео — в личный стикерпак", pv:`<div class="pv pv-sticker"><div class="s">😎</div></div>`},
+  {id:"sticker_nobg", t:"✂️ Стикер без фона", d:"Вырежу объект с твоего фото", pv:`<div class="pv pv-nobg">🐶</div>`},
   {id:"voice", t:"🎤 Голосовое → текст", d:"Расшифрую и отвечу", pv:`<div class="pv pv-voice">${"<i></i>".repeat(9)}</div>`},
   {id:"script", t:"🎬 Сценарий Shorts", d:"Сценарий и промпты для роликов", pv:`<div class="pv pv-script"><div class="film">${"<i></i>".repeat(8)}</div></div>`}
 ];
@@ -933,7 +987,105 @@ function charPromptText() {  // только для показа; бот соб�
 
 
 
-function renderAll() { renderHome(); renderAI(); renderMedia(); renderShorts(); }
+// --- Токены и баланс (данные приходят от бота в адресе) ---
+const DEMO_WALLET = { f: 25, d: 25, t: 0, g: 1, pop: "pack_20",
+  p: [["pack_5", 5, 75, ""], ["pack_20", 20, 200, ""], ["pack_50", 50, 450, ""], ["pack_100", 100, 950, ""]],
+  tips: [["tip_25", 25, ""], ["tip_100", 100, ""], ["tip_500", 500, ""]] };
+let wallet = DEMO_WALLET, walletReal = false;
+function loadWallet() {
+  const s = new URLSearchParams(location.search).get("b");
+  if (!s) return;
+  try {
+    let b64 = s.replace(/-/g, "+").replace(/_/g, "/");
+    while (b64.length % 4) b64 += "=";
+    wallet = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b64), c => c.charCodeAt(0))));
+    walletReal = true;
+  } catch (e) { console.warn("Не удалось прочитать баланс", e); }
+}
+const plural = (n, f) => { n = Math.abs(n) % 100; if (n > 10 && n < 20) return f[2]; n %= 10; return n === 1 ? f[0] : n > 1 && n < 5 ? f[1] : f[2]; };
+function hoursLeft() { const now = new Date(), m = new Date(now); m.setHours(24, 0, 0, 0); return Math.max(1, Math.ceil((m - now) / 36e5)); }
+function walletState() {
+  const { f, d, t } = wallet;
+  const w = plural(f, ["бесплатный запрос", "бесплатных запроса", "бесплатных запросов"]);
+  const tk = `${t} ${plural(t, ["токен", "токена", "токенов"])}`;
+  if (f === 0) return { cls: "empty", head: "😱 Бесплатные запросы закончились",
+    sub: t ? `Не беда — на балансе ${tk}, ИИ продолжает отвечать.` : `Новые появятся через ${hoursLeft()} ч. Не хочешь ждать? Токены работают сразу 👇` };
+  if (f <= 3) return { cls: "empty", head: `🔥 Осталось всего ${f} ${w}!`,
+    sub: t ? `Потом в ход пойдут токены — их у тебя ${t}.` : "Ещё чуть-чуть — и ИИ замолчит до завтра. Пополни заранее." };
+  if (f <= d / 2) return { cls: "warn", head: `⚡ Осталось ${f} ${w} из ${d}`,
+    sub: t ? `Плюс ${tk} в запасе.` : "Больше половины уже позади — не останься без ответа в самый нужный момент." };
+  return { cls: "", head: `🎁 У тебя ${f} ${w} из ${d} на сегодня`,
+    sub: t ? `И ещё ${tk} в запасе — ИИ не остановится.` : "Лимит обновляется каждый день. С токенами — без ограничений." };
+}
+function renderShop() {
+  const st = walletState();
+  const promo = $("promo");
+  const showPromo = walletReal && (wallet.f <= wallet.d / 2);
+  promo.classList.toggle("hidden", !showPromo);
+  promo.className = "promo " + st.cls + (showPromo ? "" : " hidden");
+  promo.innerHTML = `<div class="top"><div class="txt"><b>${st.head}</b><small>${st.sub}</small></div><span class="go">💎 →</span></div>
+    <div class="meter"><i style="width:${Math.round(wallet.f / wallet.d * 100)}%"></i></div>`;
+
+  $("wallet").className = "wallet " + st.cls;
+  $("wallet").innerHTML = `<h3>${st.head}</h3><p>${st.sub}</p>
+    <div class="meter"><i style="width:${Math.round(wallet.f / wallet.d * 100)}%"></i></div>
+    <div class="stats"><div><b>${wallet.f}</b><span>бесплатных сегодня</span></div>
+      <div><b>${wallet.t}</b><span>${plural(wallet.t, ["токен", "токена", "токенов"])}</span></div>
+      <div><b>${wallet.g}</b><span>бесплатных сценариев</span></div></div>
+    ${walletReal ? "" : '<p style="font-size:12px">Это пример. Открой меню из чата с ботом — здесь будет твой баланс.</p>'}`;
+
+  const base = Math.min(...wallet.p.map(p => p[1])) ;
+  const baseRate = (() => { const p = wallet.p.find(x => x[1] === base); return p[2] / p[1]; })();
+  const bestRate = Math.min(...wallet.p.map(p => p[2] / p[1]));
+  const icons = ["⚡", "🔥", "💎", "👑", "🚀", "🌟"];
+  $("packs").innerHTML = "";
+  wallet.p.forEach(([id, n, stars, link], i) => {
+    const rate = stars / n, save = Math.max(0, Math.round((1 - rate / baseRate) * 100));
+    const best = rate === bestRate && save > 0, pop = id === wallet.pop && !best;
+    const el = document.createElement("div");
+    el.className = "pack" + (best ? " best" : pop ? " pop" : "");
+    el.innerHTML = `${best ? '<span class="badge">💎 Самый выгодный</span>' : pop ? '<span class="badge">🔥 Популярный</span>' : ""}
+      <div class="ico">${icons[i % icons.length]}</div>
+      <div class="info"><b>${n} ${plural(n, ["токен", "токена", "токенов"])}</b>
+        <span>≈ ${rate.toFixed(rate % 1 ? 1 : 0)} ⭐ за токен${save ? ` · <span class="save">выгода ${save}%</span>` : ""}</span></div>
+      <button>${save ? `<s>${Math.round(n * baseRate)} ⭐</s>` : ""}${stars} ⭐</button>`;
+    el.querySelector("button").onclick = () => buy(id, link, n);
+    $("packs").appendChild(el);
+  });
+  const tipIcons = ["☕", "🍕", "🚀"];
+  $("tips").innerHTML = "";
+  wallet.tips.forEach(([id, stars, link], i) => {
+    const b = document.createElement("button");
+    b.className = "chip"; b.textContent = `${tipIcons[i % 3]} ${stars} ⭐`;
+    b.onclick = () => buy(id, link, 0);
+    $("tips").appendChild(b);
+  });
+}
+function toast(text) {
+  const t = $("toast"); t.textContent = text; t.classList.add("on");
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => t.classList.remove("on"), 2600);
+}
+function buy(id, link, n) {
+  haptic();
+  if (inTelegram && link && tg.openInvoice) {  // оплата прямо в мини-аппе
+    tg.openInvoice(link, status => {
+      if (status === "paid") {
+        try { tg.HapticFeedback.notificationOccurred("success"); } catch (e) {}
+        if (n) { wallet.t += n; toast(`🎉 +${n} токенов! ИИ без ограничений`); } else toast("💛 Спасибо за поддержку!");
+        renderShop();
+      } else if (status === "failed") toast("Оплата не прошла, попробуй ещё раз");
+    });
+  } else {
+    send("buy", id);  // запасной путь: бот пришлёт счёт в чат
+  }
+}
+function openTab(name) {
+  document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x.dataset.tab === name));
+  document.querySelectorAll(".panel").forEach(p => p.classList.toggle("on", p.id === "tab-" + name));
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function renderAll() { renderHome(); renderAI(); renderMedia(); renderShorts(); renderShop(); }
 
 function nearestName(hex) {
   const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
@@ -959,6 +1111,7 @@ document.querySelectorAll(".subtabs button").forEach(b => b.onclick = () => {
   document.querySelectorAll(".subtabs button").forEach(x => x.classList.toggle("on", x === b));
   document.querySelectorAll(".sub").forEach(p => p.classList.toggle("on", p.id === "sub-" + b.dataset.sub));
 });
+$("promo").onclick = () => { haptic(); openTab("shop"); };
 $("askText").oninput = () => { $("askBtn").disabled = !$("askText").value.trim(); };
 $("askBtn").onclick = () => send("ask", $("askText").value);
 $("emoji").onchange = e => { haptic(); state.assistant.emoji = e.target.checked; renderAll(); };
@@ -1018,6 +1171,7 @@ function send(action, text) {
 
 // ================= Старт =================
 loadFromUrl();
+loadWallet();
 fillInputs();
 renderAll();
 if (inTelegram) {
